@@ -1,0 +1,9 @@
+# Cloudflare Tunnel for the SAP bridge. Copy to C:\ProgramData\Cloudflare\cloudflared\config.yml (Windows)
+# or /etc/cloudflared/config.yml (Linux) after:  cloudflared tunnel login  and  cloudflared tunnel create sap-bridge
+tunnel: sap-bridge
+credentials-file: C:\ProgramData\Cloudflare\cloudflared\<TUNNEL-ID>.json
+
+ingress:
+  - hostname: sap-bridge.yourdomain.com      # the address the dashboard's SAP_BRIDGE_URL points to
+    service: http://127.0.0.1:8085           # the bridge (HOST/PORT in .env)
+  - service: http_status:404
