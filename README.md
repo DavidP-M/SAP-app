@@ -17,6 +17,10 @@ Dashboard (Cloudflare Pages)          Cloudflare                     Spyder netw
   `SELECT` / `WITH`. Writing to SAP stays with the DI API (as in the inventory count app), never SQL.
 - Keys live in `.env` on the bridge PC and as Cloudflare Pages secrets, never in GitHub or the browser.
 - Results are cached 5 minutes and parallel requests share one HANA run, so a busy dashboard costs HANA little.
+  `refresh=1` reads HANA again at most once every 30 s per report (`REFRESH_MIN_SECONDS`).
+- If HANA is down, the last good result is still served, marked with the header `X-Stale: 1`, so the dashboard keeps
+  its numbers. HANA calls time out (15 s to connect, 4 min per query) instead of hanging.
+- Error messages say what failed in plain words with a log reference; host names, users and SQL stay in the bridge log.
 
 ## What it serves
 
@@ -30,7 +34,7 @@ Dashboard (Cloudflare Pages)          Cloudflare                     Spyder netw
 | `GET /api/reports/<name>?format=json` | The same rows as JSON |
 | `GET /api/data/<name>` | Small JSON queries in `reports.py` (open SOs, sales by month, stock by warehouse, open POs) |
 
-All `/api/*` calls need `X-API-Key`. Add `refresh=1` to skip the cache.
+All `/api/*` calls need `X-API-Key`. Add `refresh=1` to skip the cache. `X-Refreshed-At` is ISO time with the PC's UTC offset.
 
 ## Set up (once)
 
@@ -72,21 +76,17 @@ directory to `C:\sap-bridge`. Then run `nssm start SapBridge`.
    **Action: Service Auth** that includes that service token. Nothing else gets through.
 
 ### 4. Turn it on in the KPI dashboard
-The dashboard needs two small additions. They are kept here in `integration/spyder-kpi-dashboard/` so the dashboard
-repo is not touched until you decide:
-1. Copy `integration/spyder-kpi-dashboard/functions/api/sap/[[path]].js` to the dashboard's `functions/api/sap/`.
-2. Paste `integration/spyder-kpi-dashboard/load-from-sap.js` into `index.html` next to `handleFiles`. Add the
-   **Load from SAP** button (the snippet's first comment has the markup) to the upload screen and the export-date
-   popover.
-3. Set the Pages secrets (each one asks for its value):
-   ```
-   npx wrangler pages secret put SAP_BRIDGE_URL --project-name spyder-kpi-dashboard           # https://sap-bridge.yourdomain.com
-   npx wrangler pages secret put SAP_BRIDGE_KEY --project-name spyder-kpi-dashboard           # the API key from .env
-   npx wrangler pages secret put CF_ACCESS_CLIENT_ID --project-name spyder-kpi-dashboard
-   npx wrangler pages secret put CF_ACCESS_CLIENT_SECRET --project-name spyder-kpi-dashboard
-   ```
-**Load from SAP** feeds the live file through the same code as an upload, so the KPIs, notes, Data Check, at-risk
-history and the shared report work as before. A Clear To Build workbook or Logican sheet already loaded stays loaded.
+The dashboard already has the Live SAP code (`functions/api/sap/[[path]].js`, since 2v6.7); the copy in
+`integration/spyder-kpi-dashboard/` is the original hand-off, kept for reference. Set the Pages secrets (each one asks
+for its value) and redeploy:
+```
+npx wrangler pages secret put SAP_BRIDGE_URL --project-name spyder-kpi-dashboard           # https://sap-bridge.yourdomain.com
+npx wrangler pages secret put SAP_BRIDGE_KEY --project-name spyder-kpi-dashboard           # the API key from .env
+npx wrangler pages secret put CF_ACCESS_CLIENT_ID --project-name spyder-kpi-dashboard
+npx wrangler pages secret put CF_ACCESS_CLIENT_SECRET --project-name spyder-kpi-dashboard
+```
+The dashboard then shows live SAP data by default and reads the bridge every 5 minutes while it is open. Live data goes
+through the same code as an upload, so the KPIs, notes, Data Check and at-risk history work as before.
 
 ## Keeping the SQL in step
 `sql/kpi_dashboard.sql` and `sql/supply_demand.sql` are copies of the dashboard repo's `queries/` files. They should

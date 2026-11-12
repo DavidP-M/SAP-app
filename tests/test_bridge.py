@@ -127,6 +127,8 @@ class Reports(Base):
         self.c.get("/api/reports/kpi", headers=self.h)
         self.c.get("/api/reports/kpi", headers=self.h)
         self.assertEqual(len(self.calls), 1)
+        key = ("report", "kpi")
+        bridge._cache[key] = (bridge._cache[key][0] - bridge.REFRESH_MIN_SECONDS - 1, bridge._cache[key][1])
         self.c.get("/api/reports/kpi?refresh=1", headers=self.h)
         self.assertEqual(len(self.calls), 2)
 
@@ -147,11 +149,34 @@ class Reports(Base):
 
     def test_hana_error_is_502_json(self):
         def boom(sql, params=()):
-            raise RuntimeError("connection refused")
+            raise RuntimeError("connection refused by hana.test:30015 for user DASHBOARD_RO")
         hana.run = boom
         r = self.c.get("/api/reports/kpi", headers=self.h)
         self.assertEqual(r.status_code, 502)
-        self.assertIn("connection refused", r.json["error"])
+        self.assertIn("could not be reached", r.json["error"])
+        self.assertIn("bridge log ref", r.json["error"])
+        for secret in ("hana.test", "DASHBOARD_RO", "30015"):
+            self.assertNotIn(secret, r.json["error"])   # no host, port or user name reaches the dashboard
+
+    def test_failed_refresh_serves_last_good_result(self):
+        first = self.c.get("/api/reports/kpi", headers=self.h)
+        def boom(sql, params=()):
+            raise RuntimeError("timeout")
+        hana.run = boom
+        bridge._cache[("report", "kpi")] = (time.time() - 3600, bridge._cache[("report", "kpi")][1])  # expired
+        r = self.c.get("/api/reports/kpi", headers=self.h)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.headers.get("X-Stale"), "1")
+        self.assertEqual(r.data, first.data)
+
+    def test_refresh_is_rate_limited(self):
+        self.c.get("/api/reports/kpi?refresh=1", headers=self.h)
+        self.c.get("/api/reports/kpi?refresh=1", headers=self.h)
+        self.assertEqual(len(self.calls), 1)   # the second refresh within REFRESH_MIN_SECONDS reuses the first
+
+    def test_refreshed_at_has_a_utc_offset(self):
+        r = self.c.get("/api/reports/kpi", headers=self.h)
+        self.assertRegex(r.headers["X-Refreshed-At"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$")
 
 
 class Values(unittest.TestCase):
@@ -165,6 +190,9 @@ class Values(unittest.TestCase):
         self.assertEqual(tv(decimal.Decimal("-0.000")), "0")
         self.assertEqual(tv(decimal.Decimal("1E+3")), "1000")
         self.assertEqual(tv("Line\twith\r\nbreaks"), "Line with breaks")
+        self.assertEqual(tv(0.00001), "0.00001")          # never exponent notation
+        self.assertEqual(tv(1234.5), "1234.5")
+        self.assertEqual(tv(float("nan")), "")
 
 
 class Data(Base):

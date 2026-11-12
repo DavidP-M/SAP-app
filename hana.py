@@ -11,6 +11,8 @@ from hdbcli import dbapi
 
 
 def connect():
+    # Timeouts in milliseconds: a HANA server that is down or stuck fails the request instead of holding a bridge
+    # thread (and every request waiting for the same report) forever.
     return dbapi.connect(
         address=os.environ["HANA_HOST"],
         port=int(os.environ.get("HANA_PORT", "30015")),
@@ -19,6 +21,8 @@ def connect():
         currentSchema=os.environ["HANA_SCHEMA"],  # the SAP B1 company database, e.g. SBO_SPYDER
         encrypt=os.environ.get("HANA_ENCRYPT", "true").lower() == "true",
         sslValidateCertificate=os.environ.get("HANA_VALIDATE_CERT", "false").lower() == "true",
+        connectTimeout=int(os.environ.get("HANA_CONNECT_TIMEOUT_MS", "15000")),
+        communicationTimeout=int(os.environ.get("HANA_QUERY_TIMEOUT_MS", "240000")),
     )
 
 
@@ -88,7 +92,10 @@ def text_value(v):
             s = s.rstrip("0").rstrip(".")
         return "0" if s in ("-0", "") else s
     if isinstance(v, float):
-        return repr(v)
+        # Plain digits, never exponent notation (repr(0.00001) is "1e-05"): the dashboard reads numbers as typed.
+        if v != v or v in (float("inf"), float("-inf")):
+            return ""
+        return text_value(decimal.Decimal(repr(v)))
     if isinstance(v, (bytes, bytearray, memoryview)):
         return bytes(v).hex()
     return re.sub(r"[\t\r\n]+", " ", str(v))
