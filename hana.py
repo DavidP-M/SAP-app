@@ -43,14 +43,15 @@ def prepare_sql(text):
     return sql
 
 
-def run(sql, params=()):
-    """Run a SELECT. Returns (column names, list of row tuples)."""
+def run(sql, params=(), max_rows=None):
+    """Run a SELECT. Returns (column names, list of row tuples).
+    With max_rows, reads at most max_rows + 1 rows, so the caller can tell the result was cut."""
     conn = connect()
     try:
         cur = conn.cursor()
         cur.execute(sql, params)
         cols = [d[0] for d in cur.description]
-        rows = cur.fetchall()
+        rows = cur.fetchall() if max_rows is None else cur.fetchmany(max_rows + 1)
         cur.close()
         return cols, [tuple(r) for r in rows]
     finally:

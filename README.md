@@ -32,9 +32,32 @@ Dashboard (Cloudflare Pages)          Cloudflare                     Spyder netw
 | `GET /api/reports/kpi` | The KPI dashboard query (`sql/kpi_dashboard.sql`) as a tab-delimited file, the same layout as SAP Export to Excel |
 | `GET /api/reports/supply-demand` | The supply / demand snapshot (`sql/supply_demand.sql`) |
 | `GET /api/reports/<name>?format=json` | The same rows as JSON |
-| `GET /api/data/<name>` | Small JSON queries in `reports.py` (open SOs, sales by month, stock by warehouse, open POs) |
+| `GET /api/data/<name>?<param>=…` | A small named query from `reports.py` as JSON (list below) |
 
 All `/api/*` calls need `X-API-Key`. Add `refresh=1` to skip the cache. `X-Refreshed-At` is ISO time with the PC's UTC offset.
+
+### Named queries (`/api/data/<name>`)
+The JSON is `{query, params, refreshed_at, row_count, stale, truncated, rows}`. `truncated` is `true` when the query hit
+its `max_rows` cap. `/api/catalog` lists each query's params with `type`, `default`, `min`, `max` (for text: the longest
+value), `required` and, where set, `choices`. Text values may hold only letters, digits, spaces and `. _ / -`.
+
+| Name | Params | One row per |
+|---|---|---|
+| `open_sales_orders` | none | open sales order, with its open value |
+| `sales_by_month` | `months` (12, 1–60) | month: invoices minus credit notes |
+| `stock_by_warehouse` | none | warehouse: on-hand quantity and value |
+| `open_purchase_orders` | none | open purchase order, with its open value |
+| `so_detail` | `docnum` (required) | line of that sales order (ORDR/RDR1) |
+| `po_detail` | `docnum` (required) | line of that purchase order (OPOR/POR1) |
+| `item_stock` | `item` (required, ≤ 50) | warehouse holding the item: on hand, committed, on order, available (OITW/OITM/OWHS) |
+| `customer_orders` | `cardcode` (required, ≤ 15), `months` (12, 1–60) | sales order of that customer: total, open value, last delivery, days late (ORDR/RDR1/ODLN/DLN1) |
+| `order_deliveries` | `docnum` (required, a sales order) | delivery or invoice line made from that order (ODLN/DLN1, OINV/INV1) |
+| `item_info` | `item` (required, ≤ 50) | the item: group, unit, lead time, min stock, last purchase price, list price 1, default vendor (OITM/OITB/ITM1/OCRD) |
+| `production_orders` | `item` ('' = all, ≤ 50), `status` (`open` or `all`) | production order: planned and completed quantity, due date, status (OWOR) |
+
+The last seven return at most 200 rows. They read ORDR, RDR1, OPOR, POR1, OITM, OITW, OWHS, OITB, ITM1, OCRD, ODLN,
+DLN1, OINV, INV1 and OWOR; ITM1 and OWOR are new to the bridge. A read-only user granted SELECT on the whole schema
+already has them; one granted single tables needs those added.
 
 ## Set up (once)
 
@@ -96,7 +119,7 @@ bridge (it reads the files on every run, so a restart is only needed to clear th
 ## Tests
 No SAP connection needed: HANA is mocked and the data is synthetic.
 ```bash
-python -m unittest discover tests                                        # bridge: security, reports, cache, values
+python -m unittest discover tests                                        # bridge: security, reports, cache, values, queries
 node tests/pages_function.test.mjs                                       # the dashboard's /api/sap function
 python tests/test_bridge.py --write-fixture tests/fixtures/kpi_from_bridge.txt
 DASHBOARD_REPO=../spyder-kpi-dashboard node tests/dashboard_roundtrip.test.js   # bridge output loaded by the dashboard's own code
@@ -107,6 +130,6 @@ the original export.
 ## Adding more
 - **A whole saved query** (file for the dashboard): put the `.sql` in `sql/` and add it to `REPORTS` in
   `reports.py`. Query Manager prompts like `[%0]` are not supported in report files.
-- **A small JSON query** (tiles, other apps): add it to `QUERIES` in `reports.py`, with `?` placeholders and
-  `params`.
+- **A small JSON query** (tiles, other apps): add it to `QUERIES` in `reports.py`, with `?` placeholders,
+  `params` and a `max_rows` cap.
 - **Another app**: give it its own key in `API_KEYS`, so it can be revoked on its own.

@@ -7,7 +7,7 @@ Runs on a machine on the Spyder network that can reach HANA, published with Clou
     GET /api/catalog                     -> the reports and queries available
     GET /api/reports/<name>              -> a saved query as a tab-delimited file (like SAP Export to Excel)
     GET /api/reports/<name>?format=json  -> the same rows as JSON
-    GET /api/data/<name>?param=value     -> a small named query as JSON
+    GET /api/data/<name>?param=value     -> a small named query as JSON (truncated: true when it hit max_rows)
 
 Every /api call needs the header  X-API-Key: <one of API_KEYS>.  Add &refresh=1 to skip the cache (at most once per
 REFRESH_MIN_SECONDS per report; sooner calls get the result just read).
@@ -19,6 +19,7 @@ import hmac
 import logging
 import os
 import pathlib
+import re
 import threading
 import time
 import uuid
@@ -134,16 +135,47 @@ def _stamp(ts):
     return datetime.datetime.fromtimestamp(ts).astimezone().isoformat(timespec="seconds")
 
 
+_SAFE_TEXT = re.compile(r"^[A-Za-z0-9 ._/\-]+$")
+_WHOLE_NUMBER = re.compile(r"[+-]?[0-9]+")
+_TYPE_NAMES = {int: "a whole number", str: "text"}
+
+
+def _param_specs(spec):
+    """Each param as (name, type, default, min, max, choices); default None means required."""
+    for p in spec.get("params", []):
+        name, typ, default, lo, hi = p[:5]
+        yield name, typ, default, lo, hi, (p[5] if len(p) > 5 else None)
+
+
 def _params(spec):
     values = {}
-    for name, typ, default, lo, hi in spec.get("params", []):
-        raw = request.args.get(name, default)
-        try:
-            val = typ(raw)
-        except (TypeError, ValueError):
-            abort(400, description=f"Parameter '{name}' must be {typ.__name__}.")
-        if (lo is not None and val < lo) or (hi is not None and val > hi):
-            abort(400, description=f"Parameter '{name}' must be between {lo} and {hi}.")
+    for name, typ, default, lo, hi, choices in _param_specs(spec):
+        raw = request.args.get(name)
+        raw = raw.strip() if raw is not None else ""
+        if raw == "":
+            if default is None:
+                abort(400, description=f"Parameter '{name}' is required.")
+            values[name] = default
+            continue
+        if choices:
+            val = raw.lower()
+            if val not in choices:
+                abort(400, description=f"Parameter '{name}' must be one of: {', '.join(choices)}.")
+        elif typ is str:
+            if hi is not None and len(raw) > hi:
+                abort(400, description=f"Parameter '{name}' must be at most {hi} characters.")
+            if not _SAFE_TEXT.fullmatch(raw):
+                abort(400, description=f"Parameter '{name}' may contain only letters, digits, spaces and . _ / -")
+            val = raw
+        else:
+            try:
+                if typ is int and not _WHOLE_NUMBER.fullmatch(raw):
+                    raise ValueError(raw)
+                val = typ(raw)
+            except (TypeError, ValueError):
+                abort(400, description=f"Parameter '{name}' must be {_TYPE_NAMES.get(typ, typ.__name__)}.")
+            if (lo is not None and val < lo) or (hi is not None and val > hi):
+                abort(400, description=f"Parameter '{name}' must be between {lo} and {hi}.")
         values[name] = val
     order = spec.get("param_map") or [p[0] for p in spec.get("params", [])]
     return tuple(values[n] for n in order), values
@@ -174,9 +206,18 @@ def catalog():
     return jsonify(
         reports={n: {"description": r["description"], "cache_seconds": r["ttl"]} for n, r in REPORTS.items()},
         queries={n: {"description": q.get("description", ""),
-                     "params": [{"name": p[0], "default": p[2], "min": p[3], "max": p[4]} for p in q.get("params", [])]}
+                     "params": [_catalog_param(*p) for p in _param_specs(q)],
+                     "max_rows": q.get("max_rows")}
                  for n, q in QUERIES.items()},
     )
+
+
+def _catalog_param(name, typ, default, lo, hi, choices):
+    """A param as the catalog lists it. For text, max is the longest value allowed."""
+    entry = {"name": name, "type": typ.__name__, "default": default, "min": lo, "max": hi, "required": default is None}
+    if choices:
+        entry["choices"] = list(choices)
+    return entry
 
 
 @app.get("/api/reports/<name>")
@@ -217,10 +258,11 @@ def data(name):
     if spec is None:
         abort(404, description=f"Unknown query '{name}'.")
     params, shown = _params(spec)
+    max_rows = spec.get("max_rows")
     stale = False
     try:
         ts, (cols, rows) = cached(("data", name, params), spec.get("ttl", 60),
-                                  lambda: hana.run(spec["sql"], params),
+                                  lambda: hana.run(spec["sql"], params, max_rows=max_rows),
                                   refresh=request.args.get("refresh") == "1")
     except Stale as s:
         log.warning("Query %s failed, serving the result from %s: %s", name, _stamp(s.entry[0]), s.cause)
@@ -228,8 +270,11 @@ def data(name):
         stale = True
     except Exception as exc:
         return failed(f"Query {name}", exc)
+    truncated = max_rows is not None and len(rows) > max_rows
+    if truncated:
+        rows = rows[:max_rows]
     return jsonify(query=name, params=shown, refreshed_at=_stamp(ts), row_count=len(rows), stale=stale,
-                   rows=[{c: hana.json_value(v) for c, v in zip(cols, r)} for r in rows])
+                   truncated=truncated, rows=[{c: hana.json_value(v) for c, v in zip(cols, r)} for r in rows])
 
 
 @app.errorhandler(400)
