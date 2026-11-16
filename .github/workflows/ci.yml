@@ -1,0 +1,50 @@
+# Tests and checks on every push and pull request. No database, no secrets: HANA is faked in the tests.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python: ["3.9", "3.12", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install (pinned, hash-checked: the same command as on the bridge PC)
+        run: python -m pip install --require-hashes -r requirements.txt
+      - name: Python tests
+        run: python -m unittest discover tests -v
+      - name: Reference Pages Function tests
+        run: node tests/pages_function.test.mjs
+
+  checks:
+    name: ruff, bandit, pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the check tools (pinned, hash-checked)
+        run: python -m pip install --require-hashes -r requirements-dev.txt
+      - name: ruff
+        run: ruff check .
+      - name: bandit
+        run: bandit -c pyproject.toml -r .
+      - name: pip-audit (the bridge's locked dependencies)
+        run: pip-audit -r requirements.txt --require-hashes --disable-pip

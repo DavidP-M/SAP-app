@@ -1,0 +1,23 @@
+# Tool settings only (the bridge is not installed as a package: see requirements.in / requirements.txt).
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, bugbear, import order, pyupgrade, security, unused noqa
+select = ["E", "W", "F", "B", "I", "UP", "S", "RUF100"]
+ignore = [
+    "UP006", "UP035",   # typing.List etc. are fine; Python 3.9 is supported
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests and tools assert, start local processes and bind 127.0.0.1 on purpose.
+"tests/*" = ["S101", "S603", "S108", "S311", "S105", "S106", "B023"]
+"tools/*" = ["S603", "S310", "S311", "S104"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "cache", "config", "hana", "reports"]
+
+[tool.bandit]
+exclude_dirs = ["tests", "tools", ".venv", "venv"]

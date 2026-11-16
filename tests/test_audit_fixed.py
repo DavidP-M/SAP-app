@@ -1,17 +1,17 @@
 """Part B: proof for each audit finding the 0001 / 0002 patches fixed (AUDIT-report.pdf, commit 0b0411a).
 
-| Finding | Proved by |
-|---|---|
-| REL-1  HANA timeouts                | AuditFixed.test_rel1_timeouts_reach_the_driver_in_ms (+ the measured driver check in README) |
-| REL-2  stale data kept on error      | test_bridge.Reports.test_failed_refresh_serves_last_good_result,
-|                                      | test_contract.Section5LastGoodResult.test_stale_carries_the_earlier_read_time |
-| REL-4  JSON 500, never HTML          | AuditFixed.test_rel4_unexpected_error_is_json_500 |
-| PERF-1 refresh=1 rate limit          | test_bridge.Reports.test_refresh_is_rate_limited, AuditFixed.test_perf1_refresh_limit_per_key |
-| SEC-4  no raw driver errors          | test_bridge.Reports.test_hana_error_is_502_json,
-|                                      | test_contract.Section5LastGoodResult.test_nothing_cached_is_a_plain_502 |
-| BUG-2  TSV exponent / NaN            | test_contract.Section4Tsv.test_every_value_rule |
-| BUG-5  lenient integers              | test_bridge.Lookups.test_ints_out_of_range, AuditFixed.test_bug5_whole_numbers_only |
-| BUG-6  UTC offset on X-Refreshed-At  | test_contract.Section4Headers.test_headers_when_fresh |
+REL-1   HANA timeouts             AuditFixed.test_rel1_timeouts_reach_the_driver_in_ms
+                                  (units measured against the real driver: see the README)
+REL-2   stale data kept on error  test_bridge.Reports.test_failed_refresh_serves_last_good_result
+                                  test_contract.Section5LastGoodResult.test_stale_carries_the_earlier_read_time
+REL-4   JSON 500, never HTML      AuditFixed.test_rel4_unexpected_error_is_json_500
+PERF-1  refresh=1 rate limit      test_bridge.Reports.test_refresh_is_rate_limited
+                                  AuditFixed.test_perf1_refresh_limit_per_key
+SEC-4   no raw driver errors      test_bridge.Reports.test_hana_error_is_502_json
+                                  test_contract.Section5LastGoodResult.test_nothing_cached_is_a_plain_502
+BUG-2   TSV exponent / NaN        test_contract.Section4Tsv.test_every_value_rule
+BUG-5   lenient integers          test_bridge.Lookups.test_ints_out_of_range, AuditFixed.test_bug5_whole_numbers_only
+BUG-6   UTC offset                test_contract.Section4Headers.test_headers_when_fresh
 """
 import os
 import pathlib
@@ -24,26 +24,24 @@ import unittest
 import fakedb
 from test_bridge import ROOT, Base, bridge, hana
 
+import config
+
 
 class AuditFixed(Base):
     def test_rel1_timeouts_reach_the_driver_in_ms(self):
         hana.run = self._orig
-        keep = {k: os.environ.pop(k, None) for k in ("HANA_CONNECT_TIMEOUT_MS", "HANA_QUERY_TIMEOUT_MS")}
-        try:
-            with fakedb.installed(rows=[(1,)]) as db:
+        env = {k: v for k, v in os.environ.items() if k not in ("HANA_CONNECT_TIMEOUT_MS", "HANA_QUERY_TIMEOUT_MS")}
+        with fakedb.installed(rows=[(1,)]) as db:
+            with hana.configured(config.from_env(env)):
                 hana.run("SELECT 1 FROM DUMMY")
-                self.assertEqual(db.connect_kwargs["connectTimeout"], 15000)          # contract defaults, in ms
-                self.assertEqual(db.connect_kwargs["communicationTimeout"], 240000)
-                os.environ.update(HANA_CONNECT_TIMEOUT_MS="5000", HANA_QUERY_TIMEOUT_MS="90000")
+            self.assertEqual(db.connect_kwargs["connectTimeout"], 15000)              # contract defaults, in ms
+            self.assertEqual(db.connect_kwargs["communicationTimeout"], 240000)
+            with hana.configured(config.from_env(dict(env, HANA_CONNECT_TIMEOUT_MS="5000",
+                                                      HANA_QUERY_TIMEOUT_MS="90000"))):
                 hana.run("SELECT 1 FROM DUMMY")
-                self.assertEqual((db.connect_kwargs["connectTimeout"], db.connect_kwargs["communicationTimeout"]),
-                                 (5000, 90000))
-                self.assertEqual(db.closed, 2)                                          # connection always closed
-        finally:
-            for k, v in keep.items():
-                os.environ.pop(k, None)
-                if v is not None:
-                    os.environ[k] = v
+            self.assertEqual((db.connect_kwargs["connectTimeout"], db.connect_kwargs["communicationTimeout"]),
+                             (5000, 90000))
+            self.assertEqual(db.closed, 2)                                              # connection always closed
 
     def test_rel4_unexpected_error_is_json_500(self):
         orig = bridge._params
@@ -83,7 +81,7 @@ class EnvFromOwnFolder(unittest.TestCase):
             env = {k: v for k, v in os.environ.items() if k not in ("REFRESH_MIN_SECONDS", "API_KEYS")}
             out = subprocess.run(
                 [sys.executable, "-c", f"import sys; sys.path.insert(0, {str(copy)!r}); import app; "
-                                       "print(app.REFRESH_MIN_SECONDS, len(app.API_KEYS))"],
+                                       "print(app.SETTINGS.refresh_min_seconds, len(app.SETTINGS.api_keys))"],
                 cwd=elsewhere, env=env, capture_output=True, text=True, timeout=60)
             self.assertEqual(out.stdout.split()[-2:], ["7", "1"], out.stderr)
 

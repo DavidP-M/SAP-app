@@ -1,0 +1,4 @@
+# Keep these byte for byte on every checkout (Windows included): the report SQL must equal the dashboard's copy,
+# and the fixtures hold exact CRLF line ends.
+sql/*.sql -text
+tests/fixtures/** -text

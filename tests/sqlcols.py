@@ -119,3 +119,24 @@ def columns(sql):
     if len(counts) != 1:
         raise ValueError(f"UNION branches return different column counts: {[len(b) for b in branches]}")
     return branches[0]
+
+
+def tables(sql):
+    """Tables a query reads: names after FROM / JOIN, minus the query's own WITH names. Upper-case, sorted."""
+    toks = list(_tokens(sql))
+    ctes = set()
+    for i, (kind, tok) in enumerate(toks[:-1]):
+        nxt = toks[i + 1][1].upper()
+        if nxt == "AS" and i + 2 < len(toks) and toks[i + 2][1] == "(" and kind in ("word", "quoted"):
+            prev = toks[i - 1][1].upper() if i else ""
+            if prev in ("WITH", ","):
+                ctes.add(_unquote(kind, tok).upper())
+    found = set()
+    for i, (kind, tok) in enumerate(toks[:-1]):
+        if kind == "word" and tok.upper() in ("FROM", "JOIN"):
+            k2, t2 = toks[i + 1]
+            if k2 in ("word", "quoted"):
+                name = _unquote(k2, t2).upper()
+                if name not in ctes and name not in ("DUMMY", "SELECT", "LATERAL"):
+                    found.add(name)
+    return sorted(found)

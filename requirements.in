@@ -1,0 +1,8 @@
+# What the bridge needs. requirements.txt is generated from this file with exact versions and hashes:
+#   uv pip compile requirements.in --universal --python-version 3.9 --generate-hashes -o requirements.txt
+flask>=3.0
+# hdbcli publishes no metadata on the Python versions it supports: 2.29 and later ship Python 3.10+ wheels only.
+hdbcli>=2.20,<2.29 ; python_version < "3.10"
+hdbcli>=2.20 ; python_version >= "3.10"
+python-dotenv>=1.0
+waitress>=3.0

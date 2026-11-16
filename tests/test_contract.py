@@ -5,7 +5,6 @@ Run:  python -m unittest discover tests
 import csv
 import datetime
 import decimal
-import pathlib
 import re
 import time
 import unittest
@@ -116,7 +115,8 @@ class Section4Headers(Base):
         r = self.c.get("/api/reports/kpi", headers=self.h)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.mimetype, "text/tab-separated-values")
-        self.assertRegex(r.headers["Content-Disposition"], r'^attachment; filename="SAP_live_KPI_\d{4}-\d{2}-\d{2}\.txt"$')
+        self.assertRegex(r.headers["Content-Disposition"],
+                         r'^attachment; filename="SAP_live_KPI_\d{4}-\d{2}-\d{2}\.txt"$')
         self.assertEqual(r.headers["X-Row-Count"], str(len(self.result[1])))
         self.assertRegex(r.headers["X-Refreshed-At"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$")
         self.assertNotIn("X-Stale", r.headers)
@@ -144,11 +144,11 @@ class Section5LastGoodResult(Base):
             raise RuntimeError("socket closed")
         hana.run = boom
         key = ("report", "kpi")
-        bridge._cache[key] = (bridge._cache[key][0] - 3600, bridge._cache[key][1])           # expired
+        bridge.STATE.age(key, 3600)                                                          # expired
         r = self.c.get("/api/reports/kpi", headers=self.h)
         self.assertEqual((r.status_code, r.headers.get("X-Stale")), (200, "1"))
         self.assertNotEqual(r.headers["X-Refreshed-At"], first.headers["X-Refreshed-At"])    # moved back an hour
-        self.assertEqual(r.headers["X-Refreshed-At"], bridge._stamp(bridge._cache[key][0]))
+        self.assertEqual(r.headers["X-Refreshed-At"], bridge._stamp(bridge.STATE.entry(key).wall))
         j = self.c.get("/api/reports/kpi?format=json", headers=self.h).json
         self.assertIs(j["stale"], True)
 
@@ -209,11 +209,18 @@ class Section8Settings(unittest.TestCase):
             self.assertIn(n, names)
 
     def test_requirements_have_no_new_packages(self):
-        names = {re.split(r"[=<>!~ \[;]", line.strip(), 1)[0].lower()
-                 for line in (ROOT / "requirements.txt").read_text().splitlines()
-                 if line.strip() and not line.lstrip().startswith(("#", "--"))}
+        """The bridge asks for the same four packages (requirements.in); requirements.txt pins them and what they
+        need to exact versions with hashes."""
+        names = {re.split(r"[=<>!~ \[;]", line.strip(), maxsplit=1)[0].lower()
+                 for line in (ROOT / "requirements.in").read_text(encoding="utf-8").splitlines()
+                 if line.strip() and not line.lstrip().startswith("#")}
         self.assertEqual(names, {"flask", "hdbcli", "python-dotenv", "waitress"})
-
+        lock = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+        pins = re.findall(r"(?m)^([a-z0-9_.-]+)==([0-9][^ ;\\]*)", lock)
+        self.assertTrue({"flask", "hdbcli", "python-dotenv", "waitress", "werkzeug"} <= {n for n, _ in pins})
+        for block in re.split(r"(?m)^(?=[a-z])", lock)[1:]:
+            self.assertIn("==", block.splitlines()[0])                # exact version
+            self.assertIn("--hash=sha256:", block)                    # and its hashes
 
 if __name__ == "__main__":
     unittest.main()

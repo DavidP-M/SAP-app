@@ -47,9 +47,19 @@ def synthetic_hana_rows():
     return cols, rows
 
 
+def fake_batches(sql, params=(), batch_rows=5000):
+    """hana.batches built on whatever hana.run is right now, so tests that replace hana.run cover reports too."""
+    cols, rows = hana.run(sql, params)
+    yield cols
+    for i in range(0, len(rows), batch_rows):
+        yield rows[i:i + batch_rows]
+
+
 class Base(unittest.TestCase):
+    overrides = {}
+
     def setUp(self):
-        bridge._cache.clear()
+        bridge.reset_state(**self.overrides)
         self.calls = []
         self.result = synthetic_hana_rows()
 
@@ -59,12 +69,16 @@ class Base(unittest.TestCase):
             return self.result
 
         self._orig = hana.run
+        self._orig_batches = hana.batches
         hana.run = fake_run
+        hana.batches = fake_batches
         self.c = bridge.app.test_client()
         self.h = {"X-API-Key": "key-dashboard"}
 
     def tearDown(self):
         hana.run = self._orig
+        hana.batches = self._orig_batches
+        bridge.reset_state()
 
 
 class Security(Base):
@@ -79,12 +93,8 @@ class Security(Base):
         self.assertEqual(self.calls, [])
 
     def test_no_keys_configured_refuses(self):
-        keep = bridge.API_KEYS
-        bridge.API_KEYS = []
-        try:
-            self.assertEqual(self.c.get("/api/catalog", headers=self.h).status_code, 503)
-        finally:
-            bridge.API_KEYS = keep
+        bridge.reset_state(api_keys=())
+        self.assertEqual(self.c.get("/api/catalog", headers=self.h).status_code, 503)
 
     def test_unknown_names_404(self):
         self.assertEqual(self.c.get("/api/reports/drop_table", headers=self.h).status_code, 404)
@@ -100,8 +110,8 @@ class Security(Base):
 
 class Reports(Base):
     def test_shipped_sql_files_are_valid_selects(self):
-        for name, spec in bridge.REPORTS.items():
-            sql = bridge._report_sql(spec)
+        for name in bridge.REPORTS:
+            sql = bridge.REPORT_SQL[name]                       # read and checked once, at start-up
             self.assertFalse(sql.endswith(";"), name)
             self.assertGreater(len(sql), 1000, name)
 
@@ -128,8 +138,7 @@ class Reports(Base):
         self.c.get("/api/reports/kpi", headers=self.h)
         self.c.get("/api/reports/kpi", headers=self.h)
         self.assertEqual(len(self.calls), 1)
-        key = ("report", "kpi")
-        bridge._cache[key] = (bridge._cache[key][0] - bridge.REFRESH_MIN_SECONDS - 1, bridge._cache[key][1])
+        bridge.STATE.age(("report", "kpi"), bridge.SETTINGS.refresh_min_seconds + 1)
         self.c.get("/api/reports/kpi?refresh=1", headers=self.h)
         self.assertEqual(len(self.calls), 2)
 
@@ -142,8 +151,9 @@ class Reports(Base):
             return slow
 
         hana.run = slow_run
-        threads = [threading.Thread(target=lambda: bridge.app.test_client().get("/api/reports/supply-demand", headers=self.h))
-                   for _ in range(5)]
+        def one():
+            bridge.app.test_client().get("/api/reports/supply-demand", headers=self.h)
+        threads = [threading.Thread(target=one) for _ in range(5)]
         [t.start() for t in threads]
         [t.join() for t in threads]
         self.assertEqual(len(self.calls), 1)
@@ -164,7 +174,7 @@ class Reports(Base):
         def boom(sql, params=()):
             raise RuntimeError("timeout")
         hana.run = boom
-        bridge._cache[("report", "kpi")] = (time.time() - 3600, bridge._cache[("report", "kpi")][1])  # expired
+        bridge.STATE.age(("report", "kpi"), 3600)                                   # expired
         r = self.c.get("/api/reports/kpi", headers=self.h)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.headers.get("X-Stale"), "1")
@@ -325,10 +335,19 @@ class Lookups(Base):
 
         class FakeCur:
             description = [("DocNum",)]
-            def execute(self, sql, params): pass
-            def fetchall(self): fetched.append("all"); return [(1,), (2,), (3,)]
-            def fetchmany(self, n): fetched.append(n); return [(1,), (2,), (3,)][:n]
-            def close(self): pass
+            def execute(self, sql, params):
+                pass
+
+            def fetchall(self):
+                fetched.append("all")
+                return [(1,), (2,), (3,)]
+
+            def fetchmany(self, n):
+                fetched.append(n)
+                return [(1,), (2,), (3,)][:n]
+
+            def close(self):
+                pass
 
         class Conn:
             def cursor(self): return FakeCur()
