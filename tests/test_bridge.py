@@ -19,7 +19,7 @@ import hana  # noqa: E402
 
 FIXTURE_CSV = ROOT / "tests" / "fixtures" / "synthetic_kpi_rows.csv"
 DATE_COLS = {"ExportDate", "DocumentDate", "ClosedDate", "DueDate", "HeaderDueDate", "LineDueDate",
-             "LineRescheduleDate", "RescheduleDate"}
+             "LineRescheduleDate", "RescheduleDate", "ShipDate"}
 NUM_COLS = {"DocEntry", "DocumentNumber", "LineNumber", "GroupCode", "Quantity", "OpenQuantity", "AmountLocal",
             "AmountForeign", "DaysPastDue"}
 
