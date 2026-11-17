@@ -1,0 +1,379 @@
+[
+ {
+  "request": "GET /health keyed",
+  "status": 200,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"status\":\"ok\"}\n"
+ },
+ {
+  "request": "GET /api/health no key",
+  "status": 401,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"error\":\"Missing or invalid API key.\"}\n"
+ },
+ {
+  "request": "GET /api/catalog no key",
+  "status": 401,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"error\":\"Missing or invalid API key.\"}\n"
+ },
+ {
+  "request": "GET /api/catalog keyed",
+  "status": 200,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"reports\":{\"kpi\":{\"description\":\"SO / delivery / PO lines for the KPI dashboard (same as the Query Manager KPI query)\",\"cache_seconds\":300},\"supply-demand\":{\"description\":\"Monthly demand vs PO supply snapshot for the Supply / Demand and Supply Mix pages\",\"cache_seconds\":300}},\"queries\":{\"open_sales_orders\":{\"description\":\"Open sales orders with remaining open value (local currency)\",\"params\":[],\"max_rows\":null},\"sales_by_month\":{\"description\":\"Net sales (invoices minus credit notes, before tax) per month\",\"params\":[{\"name\":\"months\",\"type\":\"int\",\"default\":12,\"min\":1,\"max\":60,\"required\":false}],\"max_rows\":null},\"stock_by_warehouse\":{\"description\":\"On-hand quantity and value per warehouse (warehouse average cost)\",\"params\":[],\"max_rows\":null},\"open_purchase_orders\":{\"description\":\"Open purchase orders with remaining open value\",\"params\":[],\"max_rows\":null},\"so_detail\":{\"description\":\"The lines of one sales order: items, quantities still open, prices and ship dates\",\"params\":[{\"name\":\"docnum\",\"type\":\"int\",\"default\":null,\"min\":1,\"max\":2147483647,\"required\":true}],\"max_rows\":200},\"po_detail\":{\"description\":\"The lines of one purchase order: items, quantities still to receive, prices and due dates\",\"params\":[{\"name\":\"docnum\",\"type\":\"int\",\"default\":null,\"min\":1,\"max\":2147483647,\"required\":true}],\"max_rows\":200},\"item_stock\":{\"description\":\"Stock of one item in each warehouse: on hand, committed to orders, on order and available\",\"params\":[{\"name\":\"item\",\"type\":\"str\",\"default\":null,\"min\":null,\"max\":50,\"required\":true}],\"max_rows\":200},\"customer_orders\":{\"description\":\"A customer's sales orders in recent months, with open value and how late the last delivery was\",\"params\":[{\"name\":\"cardcode\",\"type\":\"str\",\"default\":null,\"min\":null,\"max\":15,\"required\":true},{\"name\":\"months\",\"type\":\"int\",\"default\":12,\"min\":1,\"max\":60,\"required\":false}],\"max_rows\":200},\"order_deliveries\":{\"description\":\"Deliveries and invoices made against one sales order\",\"params\":[{\"name\":\"docnum\",\"type\":\"int\",\"default\":null,\"min\":1,\"max\":2147483647,\"required\":true}],\"max_rows\":200},\"item_info\":{\"description\":\"Facts about one item: group, unit, lead time, minimum stock, last purchase price, list price and default vendor\",\"params\":[{\"name\":\"item\",\"type\":\"str\",\"default\":null,\"min\":null,\"max\":50,\"required\":true}],\"max_rows\":200},\"production_orders\":{\"description\":\"Production orders (open ones unless asked for all), for one item or every item: planned and completed quantity and due date\",\"params\":[{\"name\":\"item\",\"type\":\"str\",\"default\":\"\",\"min\":null,\"max\":50,\"required\":false},{\"name\":\"status\",\"type\":\"str\",\"default\":\"open\",\"min\":null,\"max\":4,\"required\":false,\"choices\":[\"open\",\"all\"]}],\"max_rows\":200}}}\n"
+ },
+ {
+  "request": "GET /api/reports/kpi keyed",
+  "status": 200,
+  "headers": {
+   "Content-Type": "text/tab-separated-values; charset=utf-8",
+   "Content-Disposition": "attachment; filename=\"SAP_live_KPI_<DATE>.txt\"",
+   "X-Row-Count": "3",
+   "X-Refreshed-At": "<ISO>",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "DocNum\tDocDate\tStamp\tAmount\tRate\tName\tNote\tBlob\tEmpty\r\n45001\t2026-11-12\t2026-11-12\t45001\t0.00001\tFirefly RV\ttab here and line\t01ff\t\r\n45002\t2026-01-02\t2026-01-02 08:30:01\t0\t1234.5\tÜnïcödé €\t\t\t\r\n45003\t\t\t1234.5\t\tquote \" and =1+1\tx\t\t\r\n"
+ },
+ {
+  "request": "GET /api/reports/kpi?format=json keyed",
+  "status": 200,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"report\":\"kpi\",\"refreshed_at\":\"<ISO>\",\"row_count\":3,\"stale\":false,\"rows\":[{\"DocNum\":45001,\"DocDate\":\"2026-11-12\",\"Stamp\":\"2026-11-12 00:00:00\",\"Amount\":45001.0,\"Rate\":1e-05,\"Name\":\"Firefly RV\",\"Note\":\"tab\\there\\r\\nand line\",\"Blob\":\"01ff\",\"Empty\":null},{\"DocNum\":45002,\"DocDate\":\"2026-01-02\",\"Stamp\":\"2026-01-02 08:30:01\",\"Amount\":-0.0,\"Rate\":1234.5,\"Name\":\"\\u00dcn\\u00efc\\u00f6d\\u00e9 \\u20ac\",\"Note\":\"\",\"Blob\":\"\",\"Empty\":null},{\"DocNum\":45003,\"DocDate\":null,\"Stamp\":null,\"Amount\":1234.5,\"Rate\":NaN,\"Name\":\"quote \\\" and =1+1\",\"Note\":\"x\",\"Blob\":null,\"Empty\":null}]}\n"
+ },
+ {
+  "request": "GET /api/reports/supply-demand keyed",
+  "status": 200,
+  "headers": {
+   "Content-Type": "text/tab-separated-values; charset=utf-8",
+   "Content-Disposition": "attachment; filename=\"SAP_live_supply_demand_<DATE>.txt\"",
+   "X-Row-Count": "3",
+   "X-Refreshed-At": "<ISO>",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "DocNum\tDocDate\tStamp\tAmount\tRate\tName\tNote\tBlob\tEmpty\r\n45001\t2026-11-12\t2026-11-12\t45001\t0.00001\tFirefly RV\ttab here and line\t01ff\t\r\n45002\t2026-01-02\t2026-01-02 08:30:01\t0\t1234.5\tÜnïcödé €\t\t\t\r\n45003\t\t\t1234.5\t\tquote \" and =1+1\tx\t\t\r\n"
+ },
+ {
+  "request": "GET /api/reports/nope keyed",
+  "status": 404,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"error\":\"Unknown report 'nope'.\"}\n"
+ },
+ {
+  "request": "POST /api/reports/kpi keyed",
+  "status": 405,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"error\":\"The method is not allowed for the requested URL.\"}\n"
+ },
+ {
+  "request": "GET /nowhere keyed",
+  "status": 404,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"error\":\"The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.\"}\n"
+ },
+ {
+  "request": "GET /api/data/open_sales_orders keyed",
+  "status": 200,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"query\":\"open_sales_orders\",\"params\":{},\"refreshed_at\":\"<ISO>\",\"row_count\":3,\"stale\":false,\"truncated\":false,\"rows\":[{\"DocNum\":45001,\"DocDate\":\"2026-11-12\",\"Stamp\":\"2026-11-12 00:00:00\",\"Amount\":45001.0,\"Rate\":1e-05,\"Name\":\"Firefly RV\",\"Note\":\"tab\\there\\r\\nand line\",\"Blob\":\"01ff\",\"Empty\":null},{\"DocNum\":45002,\"DocDate\":\"2026-01-02\",\"Stamp\":\"2026-01-02 08:30:01\",\"Amount\":-0.0,\"Rate\":1234.5,\"Name\":\"\\u00dcn\\u00efc\\u00f6d\\u00e9 \\u20ac\",\"Note\":\"\",\"Blob\":\"\",\"Empty\":null},{\"DocNum\":45003,\"DocDate\":null,\"Stamp\":null,\"Amount\":1234.5,\"Rate\":NaN,\"Name\":\"quote \\\" and =1+1\",\"Note\":\"x\",\"Blob\":null,\"Empty\":null}]}\n"
+ },
+ {
+  "request": "GET /api/data/sales_by_month?months=6 keyed",
+  "status": 200,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"query\":\"sales_by_month\",\"params\":{\"months\":6},\"refreshed_at\":\"<ISO>\",\"row_count\":2,\"stale\":false,\"truncated\":false,\"rows\":[{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":3.0,\"Price\":12.5,\"LineStatus\":\"O\"},{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":1.5,\"Price\":null,\"LineStatus\":\"C\"}]}\n"
+ },
+ {
+  "request": "GET /api/data/sales_by_month?months=0 keyed",
+  "status": 400,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"error\":\"Parameter 'months' must be between 1 and 60.\"}\n"
+ },
+ {
+  "request": "GET /api/data/stock_by_warehouse keyed",
+  "status": 200,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"query\":\"stock_by_warehouse\",\"params\":{},\"refreshed_at\":\"<ISO>\",\"row_count\":3,\"stale\":false,\"truncated\":false,\"rows\":[{\"DocNum\":45001,\"DocDate\":\"2026-11-12\",\"Stamp\":\"2026-11-12 00:00:00\",\"Amount\":45001.0,\"Rate\":1e-05,\"Name\":\"Firefly RV\",\"Note\":\"tab\\there\\r\\nand line\",\"Blob\":\"01ff\",\"Empty\":null},{\"DocNum\":45002,\"DocDate\":\"2026-01-02\",\"Stamp\":\"2026-01-02 08:30:01\",\"Amount\":-0.0,\"Rate\":1234.5,\"Name\":\"\\u00dcn\\u00efc\\u00f6d\\u00e9 \\u20ac\",\"Note\":\"\",\"Blob\":\"\",\"Empty\":null},{\"DocNum\":45003,\"DocDate\":null,\"Stamp\":null,\"Amount\":1234.5,\"Rate\":NaN,\"Name\":\"quote \\\" and =1+1\",\"Note\":\"x\",\"Blob\":null,\"Empty\":null}]}\n"
+ },
+ {
+  "request": "GET /api/data/open_purchase_orders keyed",
+  "status": 200,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"query\":\"open_purchase_orders\",\"params\":{},\"refreshed_at\":\"<ISO>\",\"row_count\":3,\"stale\":false,\"truncated\":false,\"rows\":[{\"DocNum\":45001,\"DocDate\":\"2026-11-12\",\"Stamp\":\"2026-11-12 00:00:00\",\"Amount\":45001.0,\"Rate\":1e-05,\"Name\":\"Firefly RV\",\"Note\":\"tab\\there\\r\\nand line\",\"Blob\":\"01ff\",\"Empty\":null},{\"DocNum\":45002,\"DocDate\":\"2026-01-02\",\"Stamp\":\"2026-01-02 08:30:01\",\"Amount\":-0.0,\"Rate\":1234.5,\"Name\":\"\\u00dcn\\u00efc\\u00f6d\\u00e9 \\u20ac\",\"Note\":\"\",\"Blob\":\"\",\"Empty\":null},{\"DocNum\":45003,\"DocDate\":null,\"Stamp\":null,\"Amount\":1234.5,\"Rate\":NaN,\"Name\":\"quote \\\" and =1+1\",\"Note\":\"x\",\"Blob\":null,\"Empty\":null}]}\n"
+ },
+ {
+  "request": "GET /api/data/so_detail?docnum=45001 keyed",
+  "status": 200,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"query\":\"so_detail\",\"params\":{\"docnum\":45001},\"refreshed_at\":\"<ISO>\",\"row_count\":2,\"stale\":false,\"truncated\":false,\"rows\":[{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":3.0,\"Price\":12.5,\"LineStatus\":\"O\"},{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":1.5,\"Price\":null,\"LineStatus\":\"C\"}]}\n"
+ },
+ {
+  "request": "GET /api/data/so_detail keyed",
+  "status": 400,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"error\":\"Parameter 'docnum' is required.\"}\n"
+ },
+ {
+  "request": "GET /api/data/so_detail?docnum=1.5 keyed",
+  "status": 400,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"error\":\"Parameter 'docnum' must be a whole number.\"}\n"
+ },
+ {
+  "request": "GET /api/data/po_detail?docnum=88001 keyed",
+  "status": 200,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"query\":\"po_detail\",\"params\":{\"docnum\":88001},\"refreshed_at\":\"<ISO>\",\"row_count\":2,\"stale\":false,\"truncated\":false,\"rows\":[{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":3.0,\"Price\":12.5,\"LineStatus\":\"O\"},{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":1.5,\"Price\":null,\"LineStatus\":\"C\"}]}\n"
+ },
+ {
+  "request": "GET /api/data/item_stock?item=SPY-100 keyed",
+  "status": 200,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"query\":\"item_stock\",\"params\":{\"item\":\"SPY-100\"},\"refreshed_at\":\"<ISO>\",\"row_count\":2,\"stale\":false,\"truncated\":false,\"rows\":[{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":3.0,\"Price\":12.5,\"LineStatus\":\"O\"},{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":1.5,\"Price\":null,\"LineStatus\":\"C\"}]}\n"
+ },
+ {
+  "request": "GET /api/data/item_stock?item=O'Brien keyed",
+  "status": 400,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"error\":\"Parameter 'item' may contain only letters, digits, spaces and . _ / -\"}\n"
+ },
+ {
+  "request": "GET /api/data/item_stock?item=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA keyed",
+  "status": 400,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"error\":\"Parameter 'item' must be at most 50 characters.\"}\n"
+ },
+ {
+  "request": "GET /api/data/customer_orders?cardcode=C1001&months=6 keyed",
+  "status": 200,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"query\":\"customer_orders\",\"params\":{\"cardcode\":\"C1001\",\"months\":6},\"refreshed_at\":\"<ISO>\",\"row_count\":2,\"stale\":false,\"truncated\":false,\"rows\":[{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":3.0,\"Price\":12.5,\"LineStatus\":\"O\"},{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":1.5,\"Price\":null,\"LineStatus\":\"C\"}]}\n"
+ },
+ {
+  "request": "GET /api/data/order_deliveries?docnum=45001 keyed",
+  "status": 200,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"query\":\"order_deliveries\",\"params\":{\"docnum\":45001},\"refreshed_at\":\"<ISO>\",\"row_count\":2,\"stale\":false,\"truncated\":false,\"rows\":[{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":3.0,\"Price\":12.5,\"LineStatus\":\"O\"},{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":1.5,\"Price\":null,\"LineStatus\":\"C\"}]}\n"
+ },
+ {
+  "request": "GET /api/data/item_info?item=SPY-100 keyed",
+  "status": 200,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"query\":\"item_info\",\"params\":{\"item\":\"SPY-100\"},\"refreshed_at\":\"<ISO>\",\"row_count\":2,\"stale\":false,\"truncated\":false,\"rows\":[{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":3.0,\"Price\":12.5,\"LineStatus\":\"O\"},{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":1.5,\"Price\":null,\"LineStatus\":\"C\"}]}\n"
+ },
+ {
+  "request": "GET /api/data/production_orders?status=ALL keyed",
+  "status": 200,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"query\":\"production_orders\",\"params\":{\"item\":\"\",\"status\":\"all\"},\"refreshed_at\":\"<ISO>\",\"row_count\":2,\"stale\":false,\"truncated\":false,\"rows\":[{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":3.0,\"Price\":12.5,\"LineStatus\":\"O\"},{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":1.5,\"Price\":null,\"LineStatus\":\"C\"}]}\n"
+ },
+ {
+  "request": "GET /api/data/production_orders?status=closed keyed",
+  "status": 400,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"error\":\"Parameter 'status' must be one of: open, all.\"}\n"
+ },
+ {
+  "request": "GET /api/data/nope keyed",
+  "status": 404,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"error\":\"Unknown query 'nope'.\"}\n"
+ },
+ {
+  "request": "GET /api/reports/kpi?refresh=1 keyed, HANA down, cached",
+  "status": 200,
+  "headers": {
+   "Content-Type": "text/tab-separated-values; charset=utf-8",
+   "Content-Disposition": "attachment; filename=\"SAP_live_KPI_<DATE>.txt\"",
+   "X-Row-Count": "3",
+   "X-Refreshed-At": "<ISO>",
+   "X-Stale": "1",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "DocNum\tDocDate\tStamp\tAmount\tRate\tName\tNote\tBlob\tEmpty\r\n45001\t2026-11-12\t2026-11-12\t45001\t0.00001\tFirefly RV\ttab here and line\t01ff\t\r\n45002\t2026-01-02\t2026-01-02 08:30:01\t0\t1234.5\tÜnïcödé €\t\t\t\r\n45003\t\t\t1234.5\t\tquote \" and =1+1\tx\t\t\r\n"
+ },
+ {
+  "request": "GET /api/reports/kpi?format=json&refresh=1 keyed, HANA down, cached",
+  "status": 200,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"report\":\"kpi\",\"refreshed_at\":\"<ISO>\",\"row_count\":3,\"stale\":true,\"rows\":[{\"DocNum\":45001,\"DocDate\":\"2026-11-12\",\"Stamp\":\"2026-11-12 00:00:00\",\"Amount\":45001.0,\"Rate\":1e-05,\"Name\":\"Firefly RV\",\"Note\":\"tab\\there\\r\\nand line\",\"Blob\":\"01ff\",\"Empty\":null},{\"DocNum\":45002,\"DocDate\":\"2026-01-02\",\"Stamp\":\"2026-01-02 08:30:01\",\"Amount\":-0.0,\"Rate\":1234.5,\"Name\":\"\\u00dcn\\u00efc\\u00f6d\\u00e9 \\u20ac\",\"Note\":\"\",\"Blob\":\"\",\"Empty\":null},{\"DocNum\":45003,\"DocDate\":null,\"Stamp\":null,\"Amount\":1234.5,\"Rate\":NaN,\"Name\":\"quote \\\" and =1+1\",\"Note\":\"x\",\"Blob\":null,\"Empty\":null}]}\n"
+ },
+ {
+  "request": "GET /api/data/so_detail?docnum=45001&refresh=1 keyed, HANA down, cached",
+  "status": 200,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"query\":\"so_detail\",\"params\":{\"docnum\":45001},\"refreshed_at\":\"<ISO>\",\"row_count\":2,\"stale\":true,\"truncated\":false,\"rows\":[{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":3.0,\"Price\":12.5,\"LineStatus\":\"O\"},{\"DocNum\":45001,\"CardCode\":\"C1001\",\"DocDate\":\"2026-11-12\",\"Quantity\":1.5,\"Price\":null,\"LineStatus\":\"C\"}]}\n"
+ },
+ {
+  "request": "GET /api/reports/supply-demand?refresh=1 keyed, HANA down, nothing cached",
+  "status": 200,
+  "headers": {
+   "Content-Type": "text/tab-separated-values; charset=utf-8",
+   "Content-Disposition": "attachment; filename=\"SAP_live_supply_demand_<DATE>.txt\"",
+   "X-Row-Count": "3",
+   "X-Refreshed-At": "<ISO>",
+   "X-Stale": "1",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "DocNum\tDocDate\tStamp\tAmount\tRate\tName\tNote\tBlob\tEmpty\r\n45001\t2026-11-12\t2026-11-12\t45001\t0.00001\tFirefly RV\ttab here and line\t01ff\t\r\n45002\t2026-01-02\t2026-01-02 08:30:01\t0\t1234.5\tÜnïcödé €\t\t\t\r\n45003\t\t\t1234.5\t\tquote \" and =1+1\tx\t\t\r\n"
+ },
+ {
+  "request": "GET /api/data/so_detail?docnum=777 keyed, HANA down, nothing cached",
+  "status": 502,
+  "headers": {
+   "Content-Type": "application/json",
+   "Cache-Control": "no-store",
+   "X-Content-Type-Options": "nosniff",
+   "Content-Length": "<len>"
+  },
+  "body": "{\"error\":\"The query failed in SAP HANA. A table or column in sql/ may not match this company database. (bridge log ref <REF>)\"}\n"
+ }
+]

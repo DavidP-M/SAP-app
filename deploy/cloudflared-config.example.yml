@@ -1,9 +1,35 @@
-# Cloudflare Tunnel for the SAP bridge. Copy to C:\ProgramData\Cloudflare\cloudflared\config.yml (Windows)
-# or /etc/cloudflared/config.yml (Linux) after:  cloudflared tunnel login  and  cloudflared tunnel create sap-bridge
+# Cloudflare Tunnel for the SAP bridge, with Cloudflare Access enforced AT THE TUNNEL.
+#
+# Why: an Access policy on the hostname is the first lock. With originRequest.access below, cloudflared on the bridge
+# PC also checks every request's Access token (the Cf-Access-Jwt-Assertion header) before passing it to the bridge, so a
+# mistake in the Access policy, or a route added without Access, still cannot reach the bridge.
+#
+# Two ways to run a tunnel; use the one you set up:
+#
+# A. Tunnel created in the Cloudflare dashboard (installed with `cloudflared service install <token>`; this is how the
+#    Spyder bridge was set up). The dashboard holds the settings and this file is NOT used. Instead:
+#      Networking > Tunnels > (the tunnel) > Routes > Edit route on sap-bridge.<your domain>
+#      > Additional application settings > Access > turn on "Protect with Access",
+#      choose the SAP Bridge Access application (team name and AUD tag are filled in), Save.
+#
+# B. Tunnel managed with this file: copy it to C:\ProgramData\Cloudflare\cloudflared\config.yml (Windows) or
+#    /etc/cloudflared/config.yml (Linux) after `cloudflared tunnel login` and `cloudflared tunnel create sap-bridge`.
+#
+# Either way: the AUD tag is under Zero Trust > Access > Applications > SAP Bridge > (Overview / Basic information,
+# "Application Audience (AUD) Tag"); the team name is the first part of <team-name>.cloudflareaccess.com
+# (Zero Trust > Settings > Custom Pages / Team domain). cloudflared needs outbound HTTPS (443) to
+# <team-name>.cloudflareaccess.com to fetch the keys it checks tokens with.
+
 tunnel: sap-bridge
 credentials-file: C:\ProgramData\Cloudflare\cloudflared\<TUNNEL-ID>.json
 
 ingress:
   - hostname: sap-bridge.yourdomain.com      # the address the dashboard's SAP_BRIDGE_URL points to
-    service: http://127.0.0.1:8085           # the bridge (HOST/PORT in .env)
+    service: http://127.0.0.1:8085           # the bridge (HOST / PORT in .env)
+    originRequest:
+      access:
+        required: true                       # refuse any request without a valid Access token
+        teamName: your-team-name             # <team-name>.cloudflareaccess.com
+        audTag:
+          - 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef   # the SAP Bridge app's AUD tag
   - service: http_status:404

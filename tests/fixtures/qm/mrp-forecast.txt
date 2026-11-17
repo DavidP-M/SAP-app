@@ -1,0 +1,4 @@
+ExportDate	ForecastCode	ForecastName	ItemCode	ItemDescription	Warehouse	ForecastMonth	ForecastQty
+2026-09-10	FC2026	2026 forecast	SPY-6000	ItemDescription 1	Spyder - Lacombe	2026-10	12.5
+2026-09-10	FC2026	2026 forecast	SPY-6001	ItemDescription 2	Spyder - Lacombe	2026-11	25
+2026-09-10	FC2026	2026 forecast	SPY-6002	ItemDescription 3	Spyder - Lacombe	2026-12	37.5
