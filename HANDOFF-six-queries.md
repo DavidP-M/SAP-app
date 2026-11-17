@@ -37,7 +37,8 @@ them and send the new file for the bridge's `kpi` report. If `queries/` is right
 
 ## 2. To load the four reports live
 
-The bridge side is done. On the dashboard side:
+The bridge side is done. The dashboard side is ready for review on branch **`live-six-queries`** of
+`spy-kareena/spyder-kpi-dashboard` (from `main-hagkgo`, all 49 test files pass). What it changes:
 
 1. `functions/api/sap/[[path]].js`: allow the new names.
    ```js
