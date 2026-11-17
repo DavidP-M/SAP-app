@@ -16,7 +16,7 @@ Upgrading a running bridge PC: **[UPGRADE.md](UPGRADE.md)** (steps, rollback, ch
 
 - HANA is never exposed to the internet. Cloudflare Tunnel makes an outbound connection, so no firewall ports open.
 - Four locks: Cloudflare Access (enforced at the tunnel too, `deploy/cloudflared-config.example.yml`) → a service token
-  → the bridge's API key → a HANA user that can `SELECT` only the 25 tables the bridge reads
+  → the bridge's API key → a HANA user that can `SELECT` only the 32 tables the bridge reads
   (`sql/create_readonly_user.sql`).
 - Callers pick a report or query **by name**; they never send SQL. Lookup values are bound to `?` placeholders,
   never written into the SQL.
@@ -65,6 +65,7 @@ setting, if one is wrong.
 | `GET /api/catalog` | The reports and enabled queries |
 | `GET /api/reports/kpi` | The KPI query (`sql/kpi_dashboard.sql`, 49 columns) as a tab-delimited file, the layout of SAP Export to Excel |
 | `GET /api/reports/supply-demand` | The supply / demand snapshot (`sql/supply_demand.sql`) |
+| `GET /api/reports/<qm report>` | One of the six Query Manager queries, the same way (table below) |
 | `GET /api/reports/<name>?format=json` | The same rows as JSON |
 | `GET /api/data/<name>?<param>=…` | A named query from `reports.py` as JSON (list below) |
 
@@ -76,6 +77,29 @@ now (busy, still running, or over a lookup limit).
 
 The dashboard's side of all this is specified in its contract; the 49 KPI columns and the supply / demand columns are
 checked from the SQL text by `tests/test_contract.py`.
+
+### The six Query Manager reports
+The queries saved in Query Manager under **Kareena - Qry** (version 10.19), whose Excel exports were loaded into the
+dashboard by hand. Each `sql/qm_*.sql` file is the saved query byte for byte after a two-line header
+(`tests/test_qm_reports.py` checks the text and the columns).
+
+| Report | Query Manager | Columns |
+|---|---|---|
+| `sales-orders` | 1. KPI_Sales Orders _ 10.19 | 50 |
+| `sales-deliveries` | 2. KPI_Sales Deliveries_10.19 | 54 (with tracking, ship method, ship-to country) |
+| `purchase-orders` | 3. KPI_Purchase Order Lines_10.19 | 51 (with Buyer) |
+| `po-receipts` | 4. KPI_PO Receipts GRPO_10.19 | 51 (with Buyer) |
+| `production-kitting` | 5.KPI_Production Orders and Kitting_10.19 | 29, one row per component of each planned or released order |
+| `mrp-forecast` | 6.KPI_MRP Forecast_10.19 | 8, the newest MRP forecast by item, warehouse and month |
+
+The dashboard reads the first four as KPI exports and merges them, exactly as when the four files are uploaded
+together (`tests/qm_roundtrip.test.js`, with the dashboard's own code). It has no page yet for the last two: uploaded
+or live, they are listed as skipped. Its **Load from SAP** still asks for `kpi` and `supply-demand` only; reading these
+reports instead is a change on the dashboard's side (`HANDOFF-six-queries.md`).
+
+`production-kitting` reads `OUSR` (SAP users) for the order owner's name. `OUSR` also holds SAP sign-in data, so with
+per-table grants the bridge's user can read that table whole; if that is not acceptable, change the saved query to
+take the owner from somewhere else (for example `OHEM`), then copy it here.
 
 ### Named queries (`/api/data/<name>`)
 The JSON is `{query, params, refreshed_at, row_count, stale, truncated, rows}`. `truncated` is `true` when the query hit
@@ -105,7 +129,7 @@ history, purchase prices and default vendors by number.** Whether that is accept
 ### 1. Read-only HANA user
 Run `sql/create_readonly_user.sql` in HANA Studio as SYSTEM on the tenant that holds the company. Replace
 `SBO_SPYDER` with your company schema and the password placeholder with a strong password. It grants SELECT on the
-25 tables the bridge reads (the list is derived from the SQL and checked by the tests); a schema-wide grant is there as
+32 tables the bridge reads (the list is derived from the SQL and checked by the tests); a schema-wide grant is there as
 a commented-out alternative.
 
 ### 2. Install the bridge on a PC that can reach HANA
@@ -176,6 +200,10 @@ logged (lookup values can be personal data); neither are keys. `ran report kpi i
 compare with Cloudflare's ~100 s request limit. The `ref` in an error message is the `ref` of its log line.
 
 ## Keeping the SQL in step
+The six `sql/qm_*.sql` files follow the queries saved in Query Manager: after changing a saved query, paste its text
+over everything below the two header lines (keep the file's Windows line endings), update the SHA-256 in
+`tests/test_qm_reports.py` and restart the service.
+
 `sql/kpi_dashboard.sql` and `sql/supply_demand.sql` are byte-for-byte copies of the dashboard repo's `queries/` files
 (after a two-line header), and should match the queries saved in Query Manager. After changing a query, update it in
 all three places, then **restart the service** (`nssm restart SapBridge`): the SQL is read once at start-up. Git keeps

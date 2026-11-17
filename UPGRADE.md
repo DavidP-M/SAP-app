@@ -58,11 +58,13 @@ curl -s -H "X-API-Key: <key>" http://127.0.0.1:8085/api/health
 curl -s -H "X-API-Key: <key>" http://127.0.0.1:8085/api/catalog
 curl -s -o kpi.txt -D - -H "X-API-Key: <key>" http://127.0.0.1:8085/api/reports/kpi
 curl -s -o sd.txt -D - -H "X-API-Key: <key>" http://127.0.0.1:8085/api/reports/supply-demand
+for %r in (sales-orders sales-deliveries purchase-orders po-receipts production-kitting mrp-forecast) do curl -s -o %r.txt -D - -H "X-API-Key: <key>" http://127.0.0.1:8085/api/reports/%r
 curl -s -i http://127.0.0.1:8085/api/catalog
 curl -s -i -H "X-API-Key: <key>" "http://127.0.0.1:8085/api/data/so_detail?docnum=abc"
 ```
 Expected: `{"status":"ok"}`; `"status":"ok"` with schema `SBO_SPYDER_PROD`; the report list; `200` with
-`X-Row-Count` and `X-Refreshed-At` for both reports; `401` JSON without a key; `400` JSON for the bad number.
+`X-Row-Count` and `X-Refreshed-At` for every report; `401` JSON without a key; `400` JSON for the bad number. Open
+each `.txt` in Excel and compare it with an export of the same query from Query Manager: same columns, same rows.
 `type bridge.log` should now show one `ref=… GET /api/… key=key1 status=200 ms=… cache=miss` line per request and
 `ran report kpi in …s`.
 
@@ -87,7 +89,7 @@ These need your passwords, HANA or Cloudflare, so they are yours to do. Order ma
    `curl -s -H "CF-Access-Client-Id: <id>" -H "CF-Access-Client-Secret: <secret>" -H "X-API-Key: <key>" https://sap-bridge.spyder-api.com/api/health`
    and the same without the Access headers, which must **not** return SAP data.
 2. **Per-table grants** (HANA Studio as SYSTEM): edit `sql/create_readonly_user.sql` (schema `SBO_SPYDER_PROD`) and run
-   only its GRANT lines, then check `/api/health` and both reports still work, **then** remove the schema-wide grants:
+   only its GRANT lines, then check `/api/health` and all eight reports still work, **then** remove the schema-wide grants:
    ```sql
    REVOKE SELECT ON SCHEMA "SBO_SPYDER_PROD" FROM DASHBOARD_RO;
    REVOKE SELECT ON SCHEMA "SBO_SPYDER_TEST_20230420" FROM DASHBOARD_RO;

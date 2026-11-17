@@ -508,8 +508,8 @@ class C16TunnelExample(unittest.TestCase):
 class C17Grants(unittest.TestCase):
     def tables_read(self):
         found = set()
-        for f in ("kpi_dashboard.sql", "supply_demand.sql"):
-            found |= set(sqlcols.tables((ROOT / "sql" / f).read_text(encoding="utf-8")))
+        for spec in bridge.REPORTS.values():
+            found |= set(sqlcols.tables((ROOT / "sql" / spec["file"]).read_text(encoding="utf-8")))
         for q in bridge.QUERIES.values():
             found |= set(sqlcols.tables(q["sql"]))
         return found
@@ -518,7 +518,7 @@ class C17Grants(unittest.TestCase):
         text = (ROOT / "sql" / "create_readonly_user.sql").read_text(encoding="utf-8")
         granted = set(re.findall(r'(?m)^GRANT SELECT ON "SBO_SPYDER"\."([A-Z0-9]+)" TO DASHBOARD_RO;', text))
         self.assertEqual(granted, self.tables_read())
-        self.assertEqual(len(granted), 25)
+        self.assertEqual(len(granted), 32)
         self.assertRegex(text, r'(?m)^-- GRANT SELECT ON SCHEMA "SBO_SPYDER" TO DASHBOARD_RO;')
         self.assertNotRegex(text, r"(?m)^GRANT SELECT ON SCHEMA")
 

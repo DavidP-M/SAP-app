@@ -49,8 +49,10 @@ def sql_text(name):
 
 class Section3SqlFiles(unittest.TestCase):
     def test_reports_table(self):
-        self.assertEqual(list(bridge.REPORTS), ["kpi", "supply-demand"])
-        self.assertEqual({n: (r["file"], r["filename"], r["ttl"]) for n, r in bridge.REPORTS.items()}, {
+        # The two contract reports come first and are unchanged; the six Query Manager reports after them are
+        # checked in test_qm_reports.
+        self.assertEqual(list(bridge.REPORTS)[:2], ["kpi", "supply-demand"])
+        self.assertEqual({n: (r["file"], r["filename"], r["ttl"]) for n, r in list(bridge.REPORTS.items())[:2]}, {
             "kpi": ("kpi_dashboard.sql", "SAP_live_KPI_{date}.txt", 300),
             "supply-demand": ("supply_demand.sql", "SAP_live_supply_demand_{date}.txt", 300),
         })

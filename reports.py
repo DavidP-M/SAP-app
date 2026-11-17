@@ -20,6 +20,46 @@ REPORTS = {
         "description": "Monthly demand vs PO supply snapshot for the Supply / Demand and Supply Mix pages",
         "ttl": 300,
     },
+    # The six queries saved in Query Manager (folder "Kareena - Qry", version 10.19), whose Excel exports were loaded
+    # into the dashboard by hand. Each file is the saved query byte for byte after a two-line header. The first four
+    # are KPI exports (the dashboard merges them like four uploaded files); the dashboard has no page yet for 5 and 6.
+    "sales-orders": {
+        "file": "qm_1_sales_orders.sql",
+        "filename": "SAP_live_Sales_Orders_{date}.txt",
+        "description": "Query Manager 1. KPI_Sales Orders: SO lines (last 365 days plus any open line)",
+        "ttl": 300,
+    },
+    "sales-deliveries": {
+        "file": "qm_2_sales_deliveries.sql",
+        "filename": "SAP_live_Sales_Deliveries_{date}.txt",
+        "description": "Query Manager 2. KPI_Sales Deliveries: delivery lines of the last 365 days, with tracking",
+        "ttl": 300,
+    },
+    "purchase-orders": {
+        "file": "qm_3_purchase_order_lines.sql",
+        "filename": "SAP_live_Purchase_Order_Lines_{date}.txt",
+        "description": "Query Manager 3. KPI_Purchase Order Lines: PO lines (last 365 days plus any open line)",
+        "ttl": 300,
+    },
+    "po-receipts": {
+        "file": "qm_4_po_receipts_grpo.sql",
+        "filename": "SAP_live_PO_Receipts_{date}.txt",
+        "description": "Query Manager 4. KPI_PO Receipts GRPO: goods receipt lines of the last 365 days",
+        "ttl": 300,
+    },
+    "production-kitting": {
+        "file": "qm_5_production_orders_kitting.sql",
+        "filename": "SAP_live_Production_Kitting_{date}.txt",
+        "description": "Query Manager 5. KPI_Production Orders and Kitting: planned / released orders, one row per "
+                       "component",
+        "ttl": 300,
+    },
+    "mrp-forecast": {
+        "file": "qm_6_mrp_forecast.sql",
+        "filename": "SAP_live_MRP_Forecast_{date}.txt",
+        "description": "Query Manager 6. KPI_MRP Forecast: the newest MRP forecast by item, warehouse and month",
+        "ttl": 300,
+    },
 }
 
 # params: (name, type, default, min, max[, choices]).

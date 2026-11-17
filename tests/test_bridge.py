@@ -113,7 +113,7 @@ class Reports(Base):
         for name in bridge.REPORTS:
             sql = bridge.REPORT_SQL[name]                       # read and checked once, at start-up
             self.assertFalse(sql.endswith(";"), name)
-            self.assertGreater(len(sql), 1000, name)
+            self.assertGreater(len(sql), 500, name)
 
     def test_kpi_report_is_tab_file(self):
         r = self.c.get("/api/reports/kpi", headers=self.h)
